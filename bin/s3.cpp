@@ -45,8 +45,9 @@ listBucket(S3ConnectionPtr aS3, std::string aBucketName, std::string aPrefix,
            std::string aMarker, std::string aDelimiter, int aMaxKeys) {
   ListBucketResponsePtr lListBucket;
   ListBucketResponse::Object lObject;
+  int nRetKeys = 0;
 
-  std::string lMarker;
+  std::string lMarker = aMarker;
   try {
     do
     {
@@ -54,6 +55,7 @@ listBucket(S3ConnectionPtr aS3, std::string aBucketName, std::string aPrefix,
                                     aDelimiter, aMaxKeys);
       lListBucket->open();
       while (lListBucket->next(lObject)) {
+        nRetKeys++;
         std::cout << "   Key: " << lObject.KeyValue << " | Last Modified: " << lObject.LastModified;
         std::cout <<  " | ETag: " << lObject.ETag << " | Size: " << lObject.Size << std::endl;
         lMarker = lObject.KeyValue;
@@ -73,7 +75,10 @@ listBucket(S3ConnectionPtr aS3, std::string aBucketName, std::string aPrefix,
            lIter != lCommonPrefixes.end(); ++lIter) {
         std::cout << "CommonPrefix " << *lIter << std::endl;
       }
-    } while (lListBucket->isTruncated());
+    } while (lListBucket->isTruncated() && (aMaxKeys < 0 || nRetKeys < aMaxKeys));
+    if (lListBucket->isTruncated()) {
+        std::cout << "List truncated" << std::endl;
+    }
   } catch (S3Exception &e) {
     std::cerr << e.what() << std::endl;
     return false;
@@ -275,7 +280,7 @@ main ( int argc, char** argv )
 
   AWSConnectionFactory* lFactory = AWSConnectionFactory::getInstance();
 
-  while ((c = getopt (argc, argv, "hi:k:a:n:f:p:mx:d:s:")) != -1)
+  while ((c = getopt (argc, argv, "hi:k:a:n:f:p:m:x:d:s:")) != -1)
     switch (c)
     {
       case 'i':
